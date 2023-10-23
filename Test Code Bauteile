@@ -1,0 +1,74 @@
+#include <Arduino.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27,16,2); // setzt die LCD addresse auf 0x27 für 16 Zeichen auf 2 linien
+
+#define DHTPIN 18   //definiert den DHT pin auf pin 18
+#define DHTTYPE DHT22 //Definiert den DHT Typ (11 oder 22)
+DHT dht(DHTPIN, DHTTYPE);
+
+//relais
+int relaisPin = 15;
+
+//Fuellstandsensor
+int tankSensorPin1 = 4; //Tiefster Wassertanksensor
+
+//Erdfeuchtigkeitssensor
+
+int soilSensorPin = 13;
+
+
+
+void setup() {
+  Serial.begin(115200);   //setzt serial monitor geschwindigkeit auf 115200 Wichtig:muss auch in Platform.ini angepasst werden
+
+  pinMode(relaisPin, OUTPUT); //Inizialisiert Pin das er schreiben kann
+ 
+  pinMode(tankSensorPin1, INPUT); //Inizialisiert Pin das er lesen kann
+
+  digitalWrite(relaisPin, LOW); //setzt Pin am anfang auf low
+
+  dht.begin();    //DHT wird gestartet
+
+  lcd.init();     //Initialisiert LCD
+  lcd.backlight();  //Hintergrundbeleuchtung ein
+}
+
+void loop() {
+  TESTSCRIPT RELAIS
+  digitalWrite(relaisPin, LOW); //setzt Pin am anfang auf low
+
+  delay(1000);
+  
+  digitalWrite(relaisPin, HIGH); //setzt Pin am anfang auf low
+  delay(1000);
+
+  TESTSCRIPT Fuellstandsensor
+  Serial.println(digitalRead(tankSensorPin1));
+  delay(1000);
+
+  TESTSCRIPT Erdfeuchtigkeitssensor
+  Serial.println(analogRead(soilSensorPin));
+  delay(1000);
+
+  TESTSCRIPT DHT22
+  float h = dht.readHumidity(); //Liesst die Luftfeuchtigkeit aus
+  float t = dht.readTemperature(); //Liesst die Temperatur in grad Celsius aus
+  Zeigt die werte in der konsole an
+  Serial.print("Humidite: ");
+  Serial.print(h);
+  Serial.print("%  Temperature: ");
+  Serial.print(t);
+  Serial.print("°C, ");
+  delay(3000);
+
+  TESTSCRIPT LCD Display
+  lcd.setCursor(2,0);   //Set cursor to character 2 on line 0
+  lcd.print("Hello world!");
+  delay(3000);
+  lcd.clear();
+}
