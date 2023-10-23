@@ -1,0 +1,115 @@
+//Hier werden alle Bibliotheken integriert, welche für das Projekt gebraucht werden.
+#include <Arduino.h>          
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+//Display
+bool isMainPage = false;
+LiquidCrystal_I2C lcd(0x27,16,2); // setzt die LCD addresse auf 0x27 für 16 Zeichen auf 2 Linien
+
+//DHT22
+#define DHTPIN 18   //Definiert den DHT pin auf pin 18
+#define DHTTYPE DHT22 //Definiert den DHT Typ (11 oder 22)
+DHT dht(DHTPIN, DHTTYPE);
+
+//Relais
+int relaisPin = 15;
+
+//Fuellstandsensor
+int tankSensorPin1 = 19; //10% Wassertanksensor
+int tankSensorPin2 = 4; //25% Wassertanksensor
+int tankSensorPin3 = 16; //50% Wassertanksensor
+int tankSensorPin4 = 17; //75% Wassertanksensor
+int tankSensorPin5 = 5; //100% Wassertanksensor
+
+//Erdfeuchtigkeitssensor
+int soilSensorPin = 13;
+
+//Methoden
+int getWaterTankLevel() {   //Funktion zum Ermitteln des aktuellen Füllstands
+  if (!digitalRead(tankSensorPin5)) {   //Gibt den Wert 100 zurück wenn der TankSensor 5 angibt
+    return 100;
+  }
+  if (!digitalRead(tankSensorPin4)) {   //Gibt den Wert 75 zurück wenn der TankSensor 4 angibt
+    return 75; 
+  }
+  if (!digitalRead(tankSensorPin3)) {   //Gibt den Wert 50 zurück wenn der TankSensor 3 angibt
+    return 50;
+  }
+  if (!digitalRead(tankSensorPin2)) {   //Gibt den Wert 25 zurück wenn der TankSensor 2 angibt
+    return 25;
+  }
+  if (!digitalRead(tankSensorPin1)) {   //Gibt den Wert 10 zurück wenn der TankSensor 1 angibt
+    return 10;
+  }
+  return 0;   //Wenn keiner der Sensoren angibt, wird der Wert 0 ausgegeben
+}
+
+
+int getSoilMoisture() {   //Funktion zum auslesen der Erdfeuchtigkeit              
+  
+  int sensorValue = analogRead(soilSensorPin);    //Liesst den Sensorwert aus
+
+  int dryValue = 0;   //Hier wird der Wert für die trockene Erde definiert
+  int wetValue = 3770;    ////Hier wird der Wert für die nasse Erde definiert
+
+  float soilMoisture = map(sensorValue, dryValue, wetValue, 0, 100); // Berechnet die Bodenfeuchtigkeit in Prozent
+
+  return (int)soilMoisture;  //Gibt den aktuellen Feuchtigkeitswert in % an
+}
+
+
+void showLcd() {    //Funktion fürs LCD-Display
+  lcd.clear();
+  if (isMainPage) {   //Definiert dieses if als MainPage
+    lcd.setCursor(0,0);   //Setzt den Cursor auf den 0. Buchstaben, Zeile 0
+    lcd.print("Soil: "+ String(getSoilMoisture()) + "%");  //Gibt den aktuellen Bodenfeuchtigkeitswert auf dem LCD Display aus
+    lcd.setCursor(0,1);   //Setzt den Cursor auf den 0. Buchstaben, Zeile 1
+    lcd.print("Water: "+ String(getWaterTankLevel()) + "%");   //Gibt de naktuellen Füllstand vom Wassertank auf dem LCD Display aus
+  }
+  else {
+    lcd.setCursor(0,0);   //Setzt den Cursor auf den 0. Buchstaben, Zeile 0
+    lcd.print("Humidity: " + String(dht.readHumidity()) + "%"); //Gibt die aktuelle Luftfeuchtigkeit auf dem  LCD Display aus
+    lcd.setCursor(0,1);   //Setzt den Cursor auf den 0. Buchstaben, Zeile 1
+    lcd.print("Temp: " + String(dht.readTemperature()));  //Gibt die aktuelle Temperatur auf dem LCD Display aus
+    lcd.print((char)223);   //223 ist der Code für das Grad Zeichen in der ASCII Tabelle
+    lcd.print("C");   //Schreibt ein C hinter das Gradzeichen
+  }
+  isMainPage = !isMainPage;   //invertiert die MainPage, damit zwischen Seite 1 und 2 gewechselt wird
+}
+
+
+void setup() {
+  Serial.begin(115200);   //setzt serial monitor geschwindigkeit auf 115200 Wichtig:muss auch in Platform.ini angepasst werden
+
+  pinMode(relaisPin, OUTPUT); //Inizialisiert Pin das er schreiben kann
+  digitalWrite(relaisPin, LOW); //setzt Pin am anfang auf low
+ 
+  pinMode(tankSensorPin1, INPUT); //Inizialisiert Pin das er lesen kann
+  pinMode(tankSensorPin2, INPUT); //Inizialisiert Pin das er lesen kann
+  pinMode(tankSensorPin3, INPUT); //Inizialisiert Pin das er lesen kann
+  pinMode(tankSensorPin4, INPUT); //Inizialisiert Pin das er lesen kann
+  pinMode(tankSensorPin5, INPUT); //Inizialisiert Pin das er lesen kann
+
+  dht.begin();    //DHT wird gestartet
+
+  lcd.init();     //Initialisiert LCD
+  lcd.backlight();  //Hintergrundbeleuchtung ein
+}
+
+
+void loop() {
+  showLcd();
+
+  //Watering
+  if ((getSoilMoisture() < 30) and (getWaterTankLevel() > 0)) {   //Gibt der Pflanze für 5 Sekunden Wasser, sobald die Erdfeuchtigkeit unter 30% ist und der Wassertank nicht leer ist
+    digitalWrite(relaisPin, HIGH);
+    delay(5000);
+    digitalWrite(relaisPin, LOW);
+  }
+
+  delay(2000);    //Loop wird nach 2 Sekunden erneut ausgeführt
+}
